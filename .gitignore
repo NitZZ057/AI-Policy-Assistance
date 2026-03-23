@@ -1,0 +1,32 @@
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Dependencies
+backend/vendor/
+frontend/node_modules/
+
+# Build output
+frontend/dist/
+backend/public/build/
+backend/public/hot
+
+# Runtime / generated files
+backend/storage/*.key
+backend/storage/pail/
+backend/public/storage
+backend/database/database.sqlite
+
+# Logs and caches
+*.log
+*.cache
+backend/.phpunit.result.cache
+
+# Editor / OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.fleet/
+.zed/
