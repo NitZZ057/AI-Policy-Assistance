@@ -276,6 +276,37 @@ Backend runs at:
 http://localhost:8000
 ```
 
+### Deploying Backend On Render
+
+If Render does not offer `PHP` as a native runtime in your account, deploy the Laravel backend as a `Docker` web service.
+
+Use these settings:
+
+- `Language`: `Docker`
+- `Root Directory`: `backend`
+
+The repository already includes:
+
+- [backend/Dockerfile](backend/Dockerfile)
+- [backend/.dockerignore](backend/.dockerignore)
+- [backend/docker/entrypoint.sh](backend/docker/entrypoint.sh)
+
+Recommended Render environment variables:
+
+```env
+APP_NAME=AI Policy Assistant
+APP_ENV=production
+APP_DEBUG=false
+APP_KEY=base64:your_generated_app_key
+APP_URL=https://your-backend-service.onrender.com
+FRONTEND_URL=https://your-frontend-url
+DB_CONNECTION=sqlite
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_TIMEOUT=30
+```
+
 ## 3. Frontend Setup
 
 Open a new terminal:
