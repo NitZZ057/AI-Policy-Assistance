@@ -11,7 +11,9 @@ class PolicyAnalysis extends Model
 
     protected $fillable = [
         'user_id',
+        'policy_document_id',
         'policy_type',
+        'prompt_version',
         'input_payload',
         'output_payload',
         'final_output_payload',
@@ -31,5 +33,15 @@ class PolicyAnalysis extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function document()
+    {
+        return $this->belongsTo(PolicyDocument::class, 'policy_document_id');
+    }
+
+    public function sources()
+    {
+        return $this->hasMany(AnalysisSource::class);
     }
 }

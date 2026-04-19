@@ -39,7 +39,15 @@ return [
         'api_key' => env('OPENAI_API_KEY'),
         'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
         'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
+        'embedding_model' => env('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small'),
         'timeout' => (int) env('OPENAI_TIMEOUT', 30),
+        'retry_attempts' => (int) env('OPENAI_RETRY_ATTEMPTS', 2),
+        'retry_delay_ms' => (int) env('OPENAI_RETRY_DELAY_MS', 250),
+    ],
+
+    'ai_agents' => [
+        'policy_analysis_prompt_version' => env('POLICY_ANALYSIS_PROMPT_VERSION', 'v1'),
+        'document_qa_prompt_version' => env('DOCUMENT_QA_PROMPT_VERSION', 'v1'),
     ],
 
 ];

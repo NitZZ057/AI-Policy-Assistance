@@ -20,12 +20,15 @@ function App() {
   return (
     <Dashboard
       currentAnalysisId={assistant.currentAnalysisId}
+      documentLoading={assistant.documentLoading}
+      documents={assistant.documents}
       draft={assistant.draft}
       error={assistant.error}
       form={assistant.form}
       history={assistant.history}
       historyLoading={assistant.historyLoading}
       loading={assistant.loading}
+      messages={assistant.messages}
       onAnalyzePolicy={(event) => {
         event.preventDefault();
         assistant.analyzePolicy();
@@ -38,10 +41,21 @@ function App() {
         assistant.clearMessages();
       }}
       onOpenForReview={assistant.openForReview}
+      onQueryDocument={(event) => {
+        event.preventDefault();
+        assistant.queryDocument();
+      }}
       onSaveReview={assistant.saveReview}
+      onSelectDocument={assistant.updateSelectedDocumentId}
+      onUpdateQuestion={assistant.updateQuestion}
       onUpdateDraftField={assistant.updateDraftField}
       onUpdateFormField={assistant.updateFormField}
+      onUploadDocument={assistant.uploadDocument}
+      question={assistant.question}
+      queryLoading={assistant.queryLoading}
       savingReview={assistant.savingReview}
+      selectedDocumentId={assistant.selectedDocumentId}
+      references={assistant.references}
       successMessage={assistant.successMessage}
       user={auth.user}
     />
