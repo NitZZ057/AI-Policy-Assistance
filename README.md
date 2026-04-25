@@ -1,6 +1,43 @@
-# AI Policy Assistant
+# 🧠 AI Policy Assistant — Agentic AI + RAG System for Insurance Analysis
 
-AI Policy Assistant is a full-stack application that helps users analyze insurance policy details with AI, review the generated draft, and save a human-approved final version.
+> Production-grade AI system for automated insurance policy analysis using **Agentic AI, structured LLM outputs, and scalable backend architecture**
+
+> ⚡ Built with real-world constraints: reliability, auditability, and human-in-the-loop validation
+
+## 🚀 Overview
+
+AI Policy Assistant is a **production-oriented AI system** designed to automate insurance policy analysis workflows using structured LLM outputs.
+
+Unlike typical AI demos, this system focuses on:
+
+- **Deterministic, structured JSON outputs (not free-form text)**
+- **Human-in-the-loop validation workflows**
+- **Auditability and traceability of AI decisions**
+- **Reliable API-based AI orchestration**
+
+It combines:
+- LLM-powered reasoning
+- Backend-driven control logic
+- User-facing review workflows
+
+to create a **trustworthy AI-assisted decision system**.
+
+## 🧠 AI System Design (What Makes This Different)
+
+This is not a simple prompt-based application.
+
+Key design principles:
+
+- **AI as a system component, not a black box**
+- **Structured outputs over unbounded text generation**
+- **Separation of AI logic from business logic**
+- **Fail-safe and retry-aware AI interactions**
+- **Human approval layer before final output**
+
+This approach ensures the system is:
+- Reliable
+- Auditable
+- Production-ready
 
 The project is built with:
 - `Laravel 12` for the backend API
@@ -23,34 +60,62 @@ Users can:
 - save a final approved version
 - view their own private analysis history
 
-## Why This Project Is Stronger Than A Basic Demo
+## 💡 Production Engineering Highlights
 
-This is not just a prompt wrapper.
+This system demonstrates real-world AI engineering patterns:
 
-The application includes:
-- structured JSON AI outputs instead of raw text blobs
-- a dedicated AI service layer in the backend
-- retry-aware and user-friendly upstream error handling
-- audit/history tracking for every analysis
-- human-in-the-loop review workflow
-- authenticated, user-scoped access to analyses
+- Structured LLM outputs using strict JSON schema
+- Dedicated AI service layer (separation of concerns)
+- Retry-aware upstream API handling
+- Human-in-the-loop approval workflow
+- Full audit trail for every AI interaction
+- Authenticated, user-scoped data access
 
-## Tech Stack
+👉 Designed for reliability, not just generation
 
-### Backend
+## 📚 AI Capabilities
+
+- Structured policy understanding using LLMs  
+- Context-aware risk analysis  
+- Client-ready communication generation  
+- Extensible for future **RAG-based document retrieval**  
+
+## 🧠 Engineering Decisions
+
+### Why Structured JSON Instead of Free Text?
+- Enables deterministic parsing  
+- Reduces ambiguity  
+- Makes outputs production-safe  
+
+### Why Human-in-the-Loop?
+- AI outputs require validation in critical domains  
+- Ensures trust and correctness  
+
+### Why Dedicated AI Service Layer?
+- Keeps AI logic isolated  
+- Improves maintainability and scalability  
+
+### Why Backend-Controlled AI Flow?
+- Prevents direct exposure of AI logic  
+- Enables better error handling and monitoring  
+
+## 🛠 Tech Stack
+
+### 🤖 AI Layer
+- OpenAI API
+- Structured JSON output (schema-driven generation)
+
+### ⚙️ Backend
 - Laravel 12
 - PHP 8.2+
-- SQLite by default
-- Laravel HTTP client for OpenAI calls
+- API-first architecture
 
-### Frontend
+### 🧠 Data & Storage
+- SQLite (default)
+
+### 💻 Frontend
 - React 18
 - Vite
-- Custom hooks and modular component architecture
-
-### AI
-- OpenAI Responses API
-- strict JSON schema output
 
 ## Project Structure
 
@@ -386,6 +451,17 @@ Planned upgrades:
 - role-based access
 - document upload + RAG
 - pagination and search for analysis history
+
+## 🚀 Portfolio Positioning
+
+This project demonstrates:
+
+- AI system design beyond prompt engineering  
+- Production-ready LLM integration  
+- Reliable and auditable AI workflows  
+- Full-stack + AI system thinking  
+
+👉 Built to reflect real-world AI engineering practices, not toy demos
 
 ## Notes
 
