@@ -4,6 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     app_env: str = "local"
     app_name: str = "AI Policy Assistant API"
+    cors_origins: str = "http://localhost:5173,http://localhost:3000"
 
     database_url: str
 
@@ -21,6 +22,14 @@ class Settings(BaseSettings):
     pinecone_namespace: str = "documents"
 
     upload_dir: str = "storage/uploads"
+
+    @property
+    def allowed_cors_origins(self) -> list[str]:
+        return [
+            origin.strip()
+            for origin in self.cors_origins.split(",")
+            if origin.strip()
+        ]
 
     model_config = SettingsConfigDict(
         env_file = ".env",
