@@ -51,21 +51,27 @@ The project is built with:
 
 ```mermaid
 graph TD
+    %% Class Definitions for Colors
+    classDef frontend fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#fff
+    classDef backend fill:#0f172a,stroke:#2dd4bf,stroke-width:2px,color:#fff
+    classDef storage fill:#334155,stroke:#94a3b8,stroke-width:1px,color:#fff
+    classDef highlight fill:#111827,stroke:#fbbf24,stroke-width:2px,color:#fff
+
     subgraph Frontend_Layer [React + Vite Frontend]
-        UI[User Dashboard]
-        Review[Human-in-the-Loop Review]
+        UI[User Dashboard]:::frontend
+        Review[Human-in-the-Loop Review]:::highlight
     end
 
     subgraph Backend_Layer [FastAPI Production Backend]
-        API[API Gateway]
-        Agent[Agentic Orchestrator]
-        RAG[RAG Service]
-        Eval[RAGAS Evaluation]
+        API[API Gateway]:::backend
+        Agent[Agentic Orchestrator]:::backend
+        RAG[RAG Service]:::backend
+        Eval[RAGAS Evaluation]:::highlight
     end
 
     subgraph Storage_Layer [Data & Vector Storage]
-        DB[(PostgreSQL: Audit & History)]
-        VectorDB[(Pinecone: Policy Embeddings)]
+        DB[(PostgreSQL: Audit & History)]:::storage
+        VectorDB[(Pinecone: Policy Embeddings)]:::storage
     end
 
     UI --> API
