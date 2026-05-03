@@ -47,6 +47,38 @@ The project is built with:
 - `Pinecone` for vector search
 - `PostgreSQL` for the database
 
+## Architecture Diagram
+
+```mermaid
+graph TD
+    subgraph Frontend_Layer [React + Vite Frontend]
+        UI[User Dashboard]
+        Review[Human-in-the-Loop Review]
+    end
+
+    subgraph Backend_Layer [FastAPI Production Backend]
+        API[API Gateway]
+        Agent[Agentic Orchestrator]
+        RAG[RAG Service]
+        Eval[RAGAS Evaluation]
+    end
+
+    subgraph Storage_Layer [Data & Vector Storage]
+        DB[(PostgreSQL: Audit & History)]
+        VectorDB[(Pinecone: Policy Embeddings)]
+    end
+
+    UI --> API
+    API --> Agent
+    Agent --> RAG
+    RAG --> VectorDB
+    Agent --> DB
+    Agent --> Review
+    Review --> API
+    Agent --> Eval
+    Eval --> DB
+```
+
 ## Links
 Live Demo: [https://your-frontend-url.onrender.com](https://ai-policy-assistance-1.onrender.com)
 

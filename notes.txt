@@ -1,0 +1,605 @@
+I reviewed the current Laravel backend and the started backend_fastapi scaffold. No files were changed.
+
+Transition Plan
+
+Define Parity Target
+Keep the frontend contract stable first:
+
+POST /api/register
+POST /api/login
+GET /api/me
+POST /api/logout
+GET /api/documents
+POST /api/documents
+POST /api/document/upload
+POST /api/document/query
+GET /api/policy/history
+POST /api/policy/analyze
+PUT /api/policy/{id}/finalize
+The frontend currently depends on /api/... paths, bearer tokens, and Laravel-shaped JSON responses.
+
+Stabilize FastAPI App Structure
+Expand backend_fastapi into clear modules:
+
+app/api/routes/auth.py
+app/api/routes/documents.py
+app/api/routes/policy.py
+app/models/
+app/schemas/
+app/services/
+app/core/security.py
+app/core/errors.py
+Keep main.py responsible only for app creation, middleware, and router registration.
+
+Port Database Models
+Implement SQLAlchemy models matching the existing Laravel tables:
+
+users
+policy_documents
+document_chunks
+policy_analyses
+analysis_sources
+Important compatibility details:
+
+Laravel stores JSON fields like input_payload, metadata, embedding.
+users.api_token stores a SHA-256 token hash.
+Existing timestamps are created_at / updated_at.
+policy_documents.file_hash has a unique constraint per user.
+Authentication First
+Port auth behavior before AI/RAG:
+
+Password hashing compatible with existing Laravel hashes if reusing current users.
+Register creates user and returns plain token.
+Login validates password, rotates token, returns user.
+Middleware/dependency reads Authorization: Bearer ..., hashes it with SHA-256, finds matching users.api_token.
+Logout nulls api_token.
+This unlocks frontend login without touching policy logic.
+
+Port Document Storage
+Recreate document upload behavior:
+
+Accept only PDF/TXT.
+Enforce file size limit similar to Laravel’s max:10240.
+Hash uploaded file contents.
+Detect duplicate upload by user_id + file_hash.
+Store file under upload_dir.
+Save document with processing, then update to ready or failed.
+Port Text Extraction
+Replace Laravel services with Python equivalents:
+
+TXT: plain file read.
+PDF: use pypdf, already listed in backend_fastapi/requirements.txt.
+Same failure behavior for empty/unsupported files.
+Port Chunking
+Recreate the current chunking behavior:
+
+Normalize whitespace.
+Target around 380 words.
+60-word overlap.
+Skip tiny trailing chunks.
+Estimate token count as ceil(words * 1.33).
+This should match existing document behavior closely enough for continuity.
+
+Port Embeddings and RAG
+Current Laravel RAG stores embeddings directly in document_chunks.embedding and does in-memory cosine similarity.
+
+FastAPI should first mirror that:
+
+Use OpenAI embeddings.
+Store vectors in DB JSON.
+Retrieve chunks for selected document.
+Compute cosine similarity in Python.
+Return top 5 for policy analysis, top 6 for document Q&A.
+Pinecone config exists in FastAPI settings, but I would defer Pinecone until after behavior parity unless you explicitly want vector DB migration now.
+
+Port AI Services
+Recreate these Laravel services in Python:
+
+BaseAiService
+PolicyAnalysisAgentService
+DocumentQAAgentService
+Preserve:
+
+OpenAI Responses API usage.
+retry behavior with tenacity.
+error mapping for 401, 429/quota, 5xx.
+structured JSON schema for policy analysis.
+fallback payload:
+summary
+risk_analysis
+email
+Port Prompt Templates
+Move Blade prompt templates to Jinja2:
+
+policy-analysis.blade.php → Jinja template
+document-qa.blade.php → Jinja template
+Keep prompt versions configurable, e.g.
+
+policy_analysis_prompt_version
+document_qa_prompt_version
+Port Policy Endpoints
+Implement:
+Analyze policy.
+Save pending analysis.
+Update completed/failed result.
+Store analysis sources.
+Return the same response shape as Laravel.
+Finalize reviewed output.
+History with nested sources.chunk.document.original_name shape expected by frontend.
+Add Alembic Carefully
+Since Laravel already owns migrations, choose one of two paths:
+Recommended first step: FastAPI reads/writes the existing Laravel schema.
+Then create Alembic migrations from the current schema once parity is proven.
+
+This avoids breaking existing data while the transition is in progress.
+
+Testing Plan
+Add FastAPI tests for:
+Register/login/logout/me.
+Auth-required routes reject missing/invalid tokens.
+Document upload duplicate detection.
+TXT extraction and chunk creation.
+Policy history response shape.
+Finalize endpoint ownership checks.
+Mocked OpenAI success/failure for policy analysis and Q&A.
+Cutover Plan
+Run Laravel and FastAPI side-by-side.
+Point frontend .env API base URL to FastAPI locally.
+Verify all user flows:
+auth
+upload document
+select document
+analyze policy
+ask document question
+open history
+save reviewed output
+Once parity is confirmed, retire Laravel routes or keep Laravel as fallback temporarily.
+Suggested Implementation Order
+
+Auth + user model
+Remaining SQLAlchemy models
+Documents list/upload
+Text extraction + chunking
+Embeddings + RAG
+Document Q&A
+Policy analysis
+History/finalize
+Tests
+Cutover cleanup
+Biggest risks are password-hash compatibility, JSON/date serialization matching the frontend expectations, and preserving Laravel’s nested history/source response shape.
+
+
+
+
+
+9:38 AM
+Now, lets implement this changes one by one. I'll do the changes, you just guide me throughly.
+9:49 AM
+
+Absolutely. We’ll do this like a careful migration, one slice at a time. You make the edits; I’ll guide, review mentally, and tell you exactly what to add and why.
+
+We’ll start with Step 1: FastAPI app structure + auth foundation, because every protected route depends on it.
+
+Step 1 Goal
+
+By the end of this step, FastAPI should support:
+
+POST /api/register
+POST /api/login
+GET  /api/me
+POST /api/logout
+using the same frontend contract as Laravel:
+
+{
+  "token": "...",
+  "user": {
+    "id": 1,
+    "name": "User Name",
+    "email": "user@example.com"
+  }
+}
+and protected routes should use:
+
+Authorization: Bearer <plain_token>
+Internally, store only:
+
+sha256(plain_token)
+in users.api_token.
+
+Files To Create
+
+Create these files:
+
+backend_fastapi/app/api/routes/auth.py
+backend_fastapi/app/core/security.py
+backend_fastapi/app/schemas/user.py
+backend_fastapi/app/dependencies.py
+You already have:
+
+backend_fastapi/app/models/user.py
+backend_fastapi/app/core/database.py
+backend_fastapi/app/main.py
+1. Update User Model First
+
+Your current User model is missing password.
+
+In backend_fastapi/app/models/user.py, add this column:
+
+password: Mapped[str] = mapped_column(String(255))
+So the core fields should include:
+
+id
+name
+email
+password
+api_token
+created_at
+updated_at
+Also make api_token length 64, because Laravel stores SHA-256 hashes:
+
+api_token: Mapped[str | None] = mapped_column(String(64), unique=True, index=True, nullable=True)
+2. Create User Schemas
+
+In backend_fastapi/app/schemas/user.py, define request/response schemas.
+
+Use Pydantic:
+
+from pydantic import BaseModel, EmailStr, Field
+
+
+class UserPublic(BaseModel):
+    id: int
+    name: str
+    email: EmailStr
+
+    model_config = {
+        "from_attributes": True
+    }
+
+
+class RegisterRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    email: EmailStr
+    password: str = Field(min_length=8)
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class AuthResponse(BaseModel):
+    token: str
+    user: UserPublic
+
+
+class MeResponse(BaseModel):
+    user: UserPublic
+
+
+class MessageResponse(BaseModel):
+    message: str
+You may need to add this dependency later:
+
+email-validator
+because EmailStr requires it.
+
+3. Create Security Helpers
+
+In backend_fastapi/app/core/security.py, add functions for:
+
+password hashing
+password verification
+token generation
+token hashing
+Recommended library: passlib[bcrypt].
+
+Add this to requirements.txt eventually:
+
+passlib[bcrypt]
+email-validator
+Security helper shape:
+
+import hashlib
+import secrets
+
+from passlib.context import CryptContext
+
+
+password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def hash_password(password: str) -> str:
+    return password_context.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return password_context.verify(plain_password, hashed_password)
+
+
+def generate_plain_token() -> str:
+    return secrets.token_urlsafe(45)
+
+
+def hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+Laravel used Str::random(60). token_urlsafe(45) gives a similarly strong token.
+
+Important note: this will not verify existing Laravel bcrypt passwords unless compatible. Usually Laravel bcrypt and Passlib bcrypt are compatible, but we should test that later.
+
+4. Create Auth Dependency
+
+In backend_fastapi/app/dependencies.py, create a dependency that extracts the bearer token and loads the current user.
+
+Conceptually:
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_db_session
+from app.core.security import hash_token
+from app.models.user import User
+
+
+bearer_scheme = HTTPBearer(auto_error=False)
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: AsyncSession = Depends(get_db_session),
+) -> User:
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthenticated.",
+        )
+
+    token_hash = hash_token(credentials.credentials)
+
+    result = await db.execute(
+        select(User).where(User.api_token == token_hash)
+    )
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthenticated.",
+        )
+
+    return user
+One frontend detail: your frontend reads data.message for errors. FastAPI defaults to {"detail": "..."}. Later we should add a global exception handler to normalize this, but for now auth functionality is the priority.
+
+5. Create Auth Routes
+
+In backend_fastapi/app/api/routes/auth.py:
+
+Router prefix should be /api, because frontend calls /api/login, etc.
+
+You need:
+
+router = APIRouter(prefix="/api", tags=["auth"])
+Routes:
+
+POST /register
+POST /login
+GET /me
+POST /logout
+Implementation behavior:
+
+Register:
+
+validate unique email
+generate token
+hash password
+store user with hashed token
+return 201
+Login:
+
+find user by email
+verify password
+rotate token
+return user + token
+Me:
+
+return current user
+Logout:
+
+set api_token = None
+return message
+Use SQLAlchemy async style:
+
+result = await db.execute(select(User).where(User.email == payload.email))
+user = result.scalar_one_or_none()
+For duplicate register email, return 422 or 409. Laravel validation returns 422, but 409 is semantically fine. If you want frontend parity, use 422 with a simple message.
+
+6. Register Router In main.py
+
+In backend_fastapi/app/main.py, import and include the auth router:
+
+from app.api.routes.auth import router as auth_router
+Then inside create_app():
+
+app.include_router(auth_router)
+Keep health route too.
+
+7. Install Missing Dependencies
+
+Update requirements eventually with:
+
+passlib[bcrypt]
+email-validator
+Then install:
+
+pip install -r backend_fastapi/requirements.txt
+or if you are inside the backend folder:
+
+pip install -r requirements.txt
+8. Manual Test Checklist
+
+Once you’ve written Step 1, test these:
+
+Register:
+
+curl -X POST http://localhost:8000/api/register `
+  -H "Content-Type: application/json" `
+  -d "{\"name\":\"Test User\",\"email\":\"test@example.com\",\"password\":\"password123\"}"
+Login:
+
+curl -X POST http://localhost:8000/api/login `
+  -H "Content-Type: application/json" `
+  -d "{\"email\":\"test@example.com\",\"password\":\"password123\"}"
+Me:
+
+curl http://localhost:8000/api/me `
+  -H "Authorization: Bearer YOUR_TOKEN"
+Logout:
+
+curl -X POST http://localhost:8000/api/logout `
+  -H "Authorization: Bearer YOUR_TOKEN"
+After you finish this first slice, send me the contents of these files:
+
+backend_fastapi/app/models/user.py
+backend_fastapi/app/api/routes/auth.py
+backend_fastapi/app/core/security.py
+backend_fastapi/app/schemas/user.py
+backend_fastapi/app/dependencies.py
+backend_fastapi/app/main.py
+Then I’ll review them and guide the next slice: porting the remaining database models.
+
+
+
+
+
+9:49 AM
+Just note that, we don't have to modify the laravel backend, neither we have to use that. The laravel backend will be kept as version 1 and FastAPI backend as version 2. Aslo we will be using pinecone as vector DB.
+10:00 AM
+
+
+Got it. Important correction noted:
+
+Laravel backend stays untouched as v1.
+FastAPI backend is a separate v2, not a drop-in migration over Laravel internals.
+We should not depend on Laravel runtime or edit Laravel files.
+FastAPI can still mirror the frontend/API behavior where useful, but it should own its own implementation.
+Vector search should use Pinecone, not DB-stored embeddings as the long-term RAG path.
+That changes the plan in two key ways.
+
+Updated Direction
+
+For FastAPI v2, we should treat Laravel as a reference only:
+
+Laravel v1: legacy/reference backend
+FastAPI v2: new backend implementation
+Frontend: can later point to either backend via API base URL
+So instead of “reuse Laravel schema first,” we should build clean FastAPI ownership:
+
+backend_fastapi/
+  app/
+    api/
+    core/
+    models/
+    schemas/
+    services/
+with its own Alembic migrations and its own DB lifecycle.
+
+Pinecone Architecture
+
+For documents, the database should store document metadata and chunk records, but Pinecone should store/query vector embeddings.
+
+Recommended split:
+
+Database:
+
+users
+policy_documents
+document_chunks
+policy_analyses
+analysis_sources
+Pinecone:
+
+vector id
+embedding
+metadata:
+user_id
+document_id
+chunk_id
+chunk_index
+document_name
+maybe text_preview
+Document chunk table should include a Pinecone vector reference, something like:
+
+pinecone_vector_id
+Instead of storing the full embedding JSON in Postgres.
+
+Adjusted Implementation Order
+
+Auth foundation
+Same as before, but this is v2 auth, not Laravel compatibility.
+
+FastAPI-owned models + Alembic migrations
+Build clean tables for v2.
+
+Document upload + text extraction
+Store file metadata and raw text/chunks in DB.
+
+Chunking service
+Create chunks and DB rows.
+
+Embedding service
+Use OpenAI embeddings.
+
+Pinecone service
+Upsert vectors with metadata.
+
+RAG retrieval
+Query Pinecone using:
+
+namespace from config
+filter by user_id
+optionally filter by document_id
+Document Q&A agent
+Use Pinecone context.
+
+Policy analysis agent
+Use Pinecone context when a document is selected.
+
+History/finalize endpoints
+Store outputs and source references in FastAPI DB.
+
+One Small Schema Adjustment
+
+When you build DocumentChunk, prefer this shape:
+
+id
+policy_document_id
+chunk_index
+content
+token_count
+pinecone_vector_id
+metadata
+created_at
+updated_at
+Do not store:
+
+embedding
+unless you want a debugging/cache column. Since you said Pinecone is the vector DB, I’d avoid embedding JSON in Postgres.
+
+Config You Already Have
+
+Your FastAPI config already points the right way:
+
+pinecone_api_key
+pinecone_index_name
+pinecone_cloud
+pinecone_region
+pinecone_namespace
+Later we’ll add a PineconeService around that.
+
+Continue Current Step
+
+You can still finish the auth slice you’re on. The only thing I’d change from my previous guidance is this: don’t think about matching Laravel password compatibility. Since FastAPI v2 owns users separately, passlib[bcrypt] is fine.
+
+After your auth files are ready, send them over and I’ll review them before we move to v2 models + Alembic migrations.
