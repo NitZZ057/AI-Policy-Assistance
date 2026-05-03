@@ -75,43 +75,57 @@ This system demonstrates real-world AI engineering patterns:
 
 ## 📚 AI Capabilities
 
-- Structured policy understanding using LLMs  
-- Context-aware risk analysis  
-- Client-ready communication generation  
-- Extensible for future **RAG-based document retrieval**  
+- Structured policy understanding using LLMs
+- Context-aware risk analysis
+- Client-ready communication generation
+- Extensible for future **RAG-based document retrieval**
 
 ## 🧠 Engineering Decisions
 
 ### Why Structured JSON Instead of Free Text?
-- Enables deterministic parsing  
-- Reduces ambiguity  
-- Makes outputs production-safe  
+- Enables deterministic parsing
+- Reduces ambiguity
+- Makes outputs production-safe
 
 ### Why Human-in-the-Loop?
-- AI outputs require validation in critical domains  
-- Ensures trust and correctness  
+- AI outputs require validation in critical domains
+- Ensures trust and correctness
 
 ### Why Dedicated AI Service Layer?
-- Keeps AI logic isolated  
-- Improves maintainability and scalability  
+- Keeps AI logic isolated
+- Improves maintainability and scalability
 
 ### Why Backend-Controlled AI Flow?
-- Prevents direct exposure of AI logic  
-- Enables better error handling and monitoring  
+- Prevents direct exposure of AI logic
+- Enables better error handling and monitoring
 
 ## 🛠 Tech Stack
 
 ### 🤖 AI Layer
 - OpenAI API
+- OpenAI embeddings
 - Structured JSON output (schema-driven generation)
+- RAGAS evaluation
+- prompt templates with Jinja2
 
-### ⚙️ Backend
+### ⚙️ Backend v2
+- FastAPI
+- Python
+- SQLAlchemy async
+- Alembic
+- PostgreSQL
+- Pinecone
+- Uvicorn
+
+### 🔧 Legacy Backend v1
 - Laravel 12
 - PHP 8.2+
 - API-first architecture
 
 ### 🧠 Data & Storage
-- SQLite (default)
+- SQLite (for backend v1)
+- PostgresSQL
+- Pinecone
 
 ### 💻 Frontend
 - React 18
@@ -121,25 +135,84 @@ This system demonstrates real-world AI engineering patterns:
 
 ```text
 ai-policy-assistant/
-├── backend/
+├── backend/                       # Laravel v1 backend, retained as legacy
+├── backend_fastapi/               # FastAPI v2 backend
+│   ├── alembic/
+│   │   └── versions/
 │   ├── app/
-│   │   ├── Http/Controllers/
-│   │   ├── Http/Middleware/
-│   │   ├── Models/
-│   │   └── Services/
-│   ├── database/migrations/
-│   ├── resources/views/prompts/
-│   └── routes/
+│   │   ├── agents/
+│   │   ├── api/routes/
+│   │   ├── core/
+│   │   ├── models/
+│   │   ├── prompts/
+│   │   ├── schemas/
+│   │   └── services/
+│   │       ├── evaluation/
+│   │       └── rag/
+│   ├── scripts/
+│   ├── docker-compose.yml
+│   └── requirements.txt
 ├── frontend/
-│   ├── src/components/
-│   ├── src/constants/
-│   ├── src/hooks/
-│   ├── src/lib/
 │   └── src/
+│       ├── components/
+│       ├── hooks/
+│       ├── lib/
+│       └── styles.css
 └── README.md
 ```
 
-## Core Backend Design
+## Core FastAPI Backend Design
+
+### API Routes
+
+Key route modules:
+
+- [backend_fastapi/app/api/routes/auth.py](backend_fastapi/app/api/routes/auth.py)
+- [backend_fastapi/app/api/routes/documents.py](backend_fastapi/app/api/routes/documents.py)
+- [backend_fastapi/app/api/routes/policy.py](backend_fastapi/app/api/routes/policy.py)
+- [backend_fastapi/app/api/routes/evaluation.py](backend_fastapi/app/api/routes/evaluation.py)
+- [backend_fastapi/app/api/routes/compat.py](backend_fastapi/app/api/routes/compat.py)
+
+### Agent Layer
+
+Agent logic lives outside route handlers:
+
+- [backend_fastapi/app/agents/policy_analysis.py](backend_fastapi/app/agents/policy_analysis.py)
+- [backend_fastapi/app/agents/document_qa.py](backend_fastapi/app/agents/document_qa.py)
+
+### RAG Services
+
+RAG responsibilities are split into focused services:
+
+- [backend_fastapi/app/services/extraction.py](backend_fastapi/app/services/extraction.py)
+- [backend_fastapi/app/services/chunking.py](backend_fastapi/app/services/chunking.py)
+- [backend_fastapi/app/services/embeddings.py](backend_fastapi/app/services/embeddings.py)
+- [backend_fastapi/app/services/vector_store.py](backend_fastapi/app/services/vector_store.py)
+- [backend_fastapi/app/services/rag/retriever.py](backend_fastapi/app/services/rag/retriever.py)
+
+### Evaluation Services
+
+- [backend_fastapi/app/services/evaluation/ragas_service.py](backend_fastapi/app/services/evaluation/ragas_service.py)
+
+### Prompt Templates
+
+- [backend_fastapi/app/prompts/policy_analysis_v1.jinja2](backend_fastapi/app/prompts/policy_analysis_v1.jinja2)
+- [backend_fastapi/app/prompts/document_qa_v1.jinja2](backend_fastapi/app/prompts/document_qa_v1.jinja2)
+
+### Persistence
+
+Main tables:
+
+- `users`
+- `policy_documents`
+- `document_chunks`
+- `policy_analyses`
+- `analysis_sources`
+- `rag_evaluations`
+
+Document metadata, history, review output, and evaluation metrics live in PostgreSQL. Embeddings live in Pinecone.
+
+## Core Backend Design ( Version 1 - Laravel )
 
 ### 1. Controller Layer
 
@@ -208,23 +281,47 @@ The frontend was refactored into a production-style structure instead of keeping
 The app uses a lightweight token-based authentication flow.
 
 Public routes:
+
+- `POST /register`
+- `POST /login`
 - `POST /api/register`
 - `POST /api/login`
 
 Protected routes:
-- `GET /api/me`
-- `POST /api/logout`
-- `GET /api/policy/history`
-- `POST /api/policy/analyze`
-- `PUT /api/policy/{policyAnalysis}/finalize`
+
+- `GET /me`
+- `POST /logout`
+- `GET /documents`
+- `POST /documents/upload`
+- `POST /documents/query`
+- `POST /documents/query/stream`
+- `GET /policy/history`
+- `POST /policy/analyze`
+- `PUT /policy/{analysis_id}/finalize`
+- `GET /evaluation/summary`
+- `GET /evaluation/history`
+
+Compatibility `/api/...` routes are provided where needed for the frontend migration path.
 
 Policy history and final review actions are scoped to the authenticated user.
 
 ## API Overview
 
+### Health
+
+`GET /health`
+
+```json
+{
+  "status": "ok",
+  "service": "AI Policy Assistant API",
+  "environment": "production"
+}
+```
+
 ### Register
 
-`POST /api/register`
+`POST /register`
 
 ```json
 {
@@ -236,7 +333,7 @@ Policy history and final review actions are scoped to the authenticated user.
 
 ### Login
 
-`POST /api/login`
+`POST /login`
 
 ```json
 {
@@ -245,39 +342,73 @@ Policy history and final review actions are scoped to the authenticated user.
 }
 ```
 
+### Upload Document
+
+`POST /documents/upload`
+
+Multipart form field:
+
+```text
+document=<PDF or text file>
+```
+
+### Query Document
+
+`POST /documents/query`
+
+```json
+{
+  "document_id": 1,
+  "question": "What flood exclusions apply?"
+}
+```
+
+### Streaming Document Query
+
+`POST /documents/query/stream`
+
+Returns server-sent events:
+
+```text
+event: meta
+event: token
+event: done
+event: error
+```
+
 ### Analyze Policy
 
-`POST /api/policy/analyze`
+`POST /policy/analyze`
 
 ```json
 {
   "type": "Commercial Property",
   "coverage": "Building and contents up to $500,000",
   "location": "Austin, Texas",
-  "risk": "Moderate flood exposure"
+  "risk": "Moderate flood exposure",
+  "document_id": 1
 }
 ```
 
-Successful response shape:
+Example response:
 
 ```json
 {
   "result": {
     "summary": "Short structured summary",
     "risk_analysis": "Risk insights here",
-    "email": "Client-ready email here"
+    "email": "Client-ready email body here"
   },
   "meta": {
     "analysis_id": 1,
-    "status": "completed",
-    "attempts": 1
+    "status": "completed"
   }
 }
 ```
 
 ### Save Final Reviewed Output
 
-`PUT /api/policy/{id}/finalize`
+`PUT /policy/{analysis_id}/finalize`
 
 ```json
 {
@@ -287,15 +418,46 @@ Successful response shape:
 }
 ```
 
+### Evaluation Summary
+
+`GET /evaluation/summary`
+
+Example response:
+
+```json
+{
+  "averages": {
+    "faithfulness": 0.83,
+    "answer_relevance": 0.91
+  },
+  "total_evaluations": 12,
+  "error_count": 1,
+  "trend": [
+    {
+      "date": "2026-05-03",
+      "faithfulness": 0.83
+    }
+  ],
+  "per_agent": [
+    {
+      "agent_type": "document_qa",
+      "faithfulness": 0.94,
+      "answer_relevance": 0.89,
+      "runs": 5
+    }
+  ]
+}
+```
+
 ## Local Setup
 
 ## Prerequisites
 
-- PHP 8.2+
-- Composer
+- Python 3.11+
 - Node.js + npm
-- SQLite or another supported database
-- OpenAI API key with available quota
+- Docker Desktop, or local PostgreSQL
+- OpenAI API key
+- Pinecone API key and index
 
 ## 1. Clone The Repository
 
@@ -304,38 +466,62 @@ git clone <your-repo-url>
 cd "Policy Assistance"
 ```
 
-## 2. Backend Setup
+### 2. Start PostgreSQL Locally
+
+From the FastAPI backend folder:
 
 ```powershell
-cd backend
-composer install
-Copy-Item .env.example .env
-php artisan key:generate
+cd backend_fastapi
+docker compose up -d
 ```
 
-Update `backend/.env`:
+If you are not using Docker, create a PostgreSQL database manually and update `DATABASE_URL`.
+
+### 3. FastAPI Backend Setup
+
+```powershell
+cd backend_fastapi
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+Copy-Item .env.example .env
+```
+
+Update `backend_fastapi/.env`:
 
 ```env
-APP_NAME="AI Policy Assistant"
-APP_URL=http://localhost:8000
-FRONTEND_URL=http://localhost:5173
+APP_ENV=local
+APP_NAME="AI Policy Assistant API"
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+
+DATABASE_URL=postgresql+asyncpg://username:password@localhost:5432/policy_assistant
 
 OPENAI_API_KEY=your_openai_api_key
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_MODEL=gpt-4o-mini
-OPENAI_TIMEOUT=30
+OPENAI_MODEL=gpt-4.1-mini
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+
+PINECONE_API_KEY=your_pinecone_api_key
+PINECONE_INDEX_NAME=policy-assistant
+PINECONE_CLOUD=aws
+PINECONE_REGION=us-east-1
+PINECONE_NAMESPACE=documents
+
+POLICY_ANALYSIS_PROMPT_VERSION=v1
+DOCUMENT_QA_PROMPT_VERSION=v1
+
+UPLOAD_DIR=storage/uploads
 ```
 
 Run migrations:
 
 ```powershell
-php artisan migrate
+alembic upgrade head
 ```
 
 Start backend:
 
 ```powershell
-php artisan serve
+python -m uvicorn app.main:app --reload
 ```
 
 Backend runs at:
@@ -344,38 +530,13 @@ Backend runs at:
 http://localhost:8000
 ```
 
-### Deploying Backend On Render
+Swagger docs:
 
-If Render does not offer `PHP` as a native runtime in your account, deploy the Laravel backend as a `Docker` web service.
-
-Use these settings:
-
-- `Language`: `Docker`
-- `Root Directory`: `backend`
-
-The repository already includes:
-
-- [backend/Dockerfile](backend/Dockerfile)
-- [backend/.dockerignore](backend/.dockerignore)
-- [backend/docker/entrypoint.sh](backend/docker/entrypoint.sh)
-
-Recommended Render environment variables:
-
-```env
-APP_NAME=AI Policy Assistant
-APP_ENV=production
-APP_DEBUG=false
-APP_KEY=base64:your_generated_app_key
-APP_URL=https://your-backend-service.onrender.com
-FRONTEND_URL=https://your-frontend-url
-DB_CONNECTION=sqlite
-OPENAI_API_KEY=your_openai_api_key
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_MODEL=gpt-4o-mini
-OPENAI_TIMEOUT=30
+```text
+http://localhost:8000/docs
 ```
 
-## 3. Frontend Setup
+### 4. Frontend Setup
 
 Open a new terminal:
 
@@ -398,31 +559,114 @@ Frontend runs at:
 http://localhost:5173
 ```
 
+## Deploying FastAPI Backend On Render
+
+Create a new Render Web Service for the FastAPI backend.
+
+Recommended settings:
+
+- Runtime: `Python 3`
+- Root Directory: `backend_fastapi`
+- Build Command:
+
+```bash
+pip install -r requirements.txt
+```
+
+- Start Command:
+
+```bash
+python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+- Pre-deploy Command:
+
+```bash
+alembic upgrade head
+```
+
+If the pre-deploy command is not available on your Render plan, run migrations from the Render shell:
+
+```bash
+alembic upgrade head
+```
+
+Recommended Render environment variables:
+
+```env
+APP_ENV=production
+APP_NAME=AI Policy Assistant API
+CORS_ORIGINS=https://your-frontend-service.onrender.com
+
+DATABASE_URL=postgresql+asyncpg://user:password@internal-render-host/database
+
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL=gpt-4.1-mini
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+
+PINECONE_API_KEY=your_pinecone_api_key
+PINECONE_INDEX_NAME=policy-assistant
+PINECONE_CLOUD=aws
+PINECONE_REGION=us-east-1
+PINECONE_NAMESPACE=production
+
+POLICY_ANALYSIS_PROMPT_VERSION=v1
+DOCUMENT_QA_PROMPT_VERSION=v1
+
+UPLOAD_DIR=storage/uploads
+```
+
+Use Render's internal PostgreSQL URL for `DATABASE_URL`, but change the prefix from:
+
+```text
+postgresql://
+```
+
+to:
+
+```text
+postgresql+asyncpg://
+```
+
+## Deploying Frontend On Render
+
+Set the frontend environment variable:
+
+```env
+VITE_API_BASE_URL=https://your-fastapi-backend.onrender.com
+```
+
+Redeploy the frontend after changing the API URL.
+
+The FastAPI backend must include the frontend origin in `CORS_ORIGINS`.
+
 ## Demo Flow
 
-1. Register a new account
-2. Log in
-3. Load demo data or enter your own policy details
-4. Click `Analyze policy`
-5. Review the AI-generated draft
-6. Edit the content if needed
-7. Click `Save final version`
-8. Reopen past analyses from history
+1. Register a new account.
+2. Log in.
+3. Upload a PDF or text policy document.
+4. Wait for document status to move from queued/processing to ready.
+5. Ask a document-grounded question.
+6. Run policy analysis with or without selected document context.
+7. Review the generated summary, risk analysis, and email.
+8. Save the final approved version.
+9. Open the AI Evaluation dashboard and inspect quality metrics.
 
 ## Testing
 
-Backend tests include:
-- authentication flow
-- protected route behavior
-- AI analysis logging
-- user-scoped history
-- saving reviewed output
-
-Run backend tests:
+Backend:
 
 ```powershell
-cd backend
-php artisan test
+cd backend_fastapi
+python -m compileall app
+alembic check
+```
+
+Frontend:
+
+```powershell
+cd frontend
+npm run build
 ```
 
 ## Interview / Portfolio Positioning
@@ -435,36 +679,45 @@ It shows:
 - separation of concerns
 - authenticated multi-user workflow
 - human-in-the-loop AI review
+- multi-agent AI orchestration
+- RAG with vector database retrieval
+- structured LLM outputs
+- streaming AI responses
+- RAG evaluation and observability
 - auditability and history tracking
 - practical product thinking around reliability and trust
 
 A strong way to describe it:
 
-> Built a production-shaped AI policy assistant using Laravel, React, and OpenAI with structured outputs, authenticated user workflows, audit logging, and a human review layer for final approved content.
+> Built a production-oriented AI policy assistant using FastAPI, React, OpenAI, Pinecone, PostgreSQL, and RAGAS with multi-agent orchestration, document-grounded Q&A, structured policy analysis, streaming responses, and AI quality observability.
 
 ## Future Improvements
 
 Planned upgrades:
-- prompt version tracking
-- analysis detail pages
+- persistent object storage for uploaded source files
+- Celery or managed queue for heavier ingestion workloads
+- curated ground-truth datasets for context precision/recall
+- pagination and search for history/evaluations
+- role-based access control
 - export to PDF/email package
-- role-based access
-- document upload + RAG
-- pagination and search for analysis history
+- CI tests for backend and frontend
 
 ## 🚀 Portfolio Positioning
 
 This project demonstrates:
 
-- AI system design beyond prompt engineering  
-- Production-ready LLM integration  
-- Reliable and auditable AI workflows  
-- Full-stack + AI system thinking  
+- AI system design beyond prompt engineering
+- Production-ready LLM integration
+- Reliable and auditable AI workflows
+- Full-stack + AI system thinking
+- RAG evaluation and observability
 
 👉 Built to reflect real-world AI engineering practices, not toy demos
 
 ## Notes
 
+- The Laravel backend in `backend/` is version 1 and is not required for the FastAPI v2 deployment.
+- OpenAI and Pinecone API keys should never be committed to GitHub.
 - If you see `insufficient_quota`, your OpenAI account or project does not currently have available API quota.
-- If Composer or npm fail locally, verify that PHP extensions, Node.js, and dependency tooling are installed correctly.
-- The OpenAI API key should never be committed to GitHub.
+- If RAGAS evaluation scores are delayed, check the async evaluation logs and the `rag_evaluations` table.
+- If browser login/register fails with CORS, ensure `CORS_ORIGINS` exactly matches the deployed frontend URL, including `https://` and no trailing slash.
