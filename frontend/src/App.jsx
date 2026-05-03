@@ -27,6 +27,9 @@ function App() {
       form={assistant.form}
       history={assistant.history}
       historyLoading={assistant.historyLoading}
+      evaluationHistory={assistant.evaluationHistory}
+      evaluationLoading={assistant.evaluationLoading}
+      evaluationSummary={assistant.evaluationSummary}
       loading={assistant.loading}
       messages={assistant.messages}
       onAnalyzePolicy={(event) => {
@@ -36,6 +39,7 @@ function App() {
       onCopy={assistant.copyText}
       onLoadDemoPolicy={assistant.loadDemoPolicy}
       onLoadHistory={assistant.loadHistory}
+      onLoadEvaluation={assistant.loadEvaluation}
       onLogout={async () => {
         await auth.logout();
         assistant.clearMessages();

@@ -2,6 +2,7 @@ export function Sidebar({ activeWorkspace, onWorkspaceChange, onLogout, user }) 
   const navItems = [
     { id: "policy", label: "Policy Analysis" },
     { id: "documents", label: "Document Assistant" },
+    { id: "evaluation", label: "AI Evaluation" },
   ];
 
   return (

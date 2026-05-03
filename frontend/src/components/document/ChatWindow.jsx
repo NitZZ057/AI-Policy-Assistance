@@ -31,7 +31,9 @@ export function ChatWindow({
           messages.map((message) => <MessageBubble key={message.id} message={message} />)
         )}
 
-        {queryLoading ? <div className="message-bubble message-bubble-assistant">Searching the selected document...</div> : null}
+        {queryLoading && !messages.some((message) => message.streaming) ? (
+          <div className="message-bubble message-bubble-assistant">Searching the selected document...</div>
+        ) : null}
       </div>
 
       <form className="chat-composer" onSubmit={onQueryDocument}>

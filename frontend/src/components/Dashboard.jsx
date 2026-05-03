@@ -5,6 +5,7 @@ import { AppLayout } from "./layout/AppLayout";
 import { PolicyForm } from "./policy/PolicyForm";
 import { PolicyOutput } from "./policy/PolicyOutput";
 import { HistoryList } from "./HistoryList";
+import { EvaluationDashboard } from "./evaluation/EvaluationDashboard";
 
 export function Dashboard({
   currentAnalysisId,
@@ -15,12 +16,16 @@ export function Dashboard({
   form,
   history,
   historyLoading,
+  evaluationHistory,
+  evaluationLoading,
+  evaluationSummary,
   loading,
   messages,
   onAnalyzePolicy,
   onCopy,
   onLoadDemoPolicy,
   onLoadHistory,
+  onLoadEvaluation,
   onLogout,
   onOpenForReview,
   onQueryDocument,
@@ -41,17 +46,27 @@ export function Dashboard({
   const [activeWorkspace, setActiveWorkspace] = useState("policy");
 
   const isPolicy = activeWorkspace === "policy";
+  const isDocuments = activeWorkspace === "documents";
+  const isEvaluation = activeWorkspace === "evaluation";
 
   return (
     <AppLayout
       activeWorkspace={activeWorkspace}
       onLogout={onLogout}
       onWorkspaceChange={setActiveWorkspace}
-      title={isPolicy ? "Analyze a policy" : "Ask a document question"}
+      title={
+        isPolicy
+          ? "Analyze a policy"
+          : isDocuments
+            ? "Ask a document question"
+            : "Measure AI quality"
+      }
       subtitle={
         isPolicy
           ? "Enter structured policy details in the workspace. Review and approve AI output in the panel."
-          : "Select an uploaded policy document, then ask grounded questions in the chat panel."
+          : isDocuments
+            ? "Select an uploaded policy document, then ask grounded questions in the chat panel."
+            : "Track faithfulness, relevance, and retrieval quality across RAG-backed agent responses."
       }
       user={user}
       main={
@@ -76,13 +91,20 @@ export function Dashboard({
               onOpenForReview={onOpenForReview}
             />
           </div>
-        ) : (
+        ) : isDocuments ? (
           <DocumentAssistant
             documentLoading={documentLoading}
             documents={documents}
             onSelectDocument={onSelectDocument}
             onUploadDocument={onUploadDocument}
             selectedDocumentId={selectedDocumentId}
+          />
+        ) : (
+          <EvaluationDashboard
+            evaluationHistory={evaluationHistory}
+            evaluationLoading={evaluationLoading}
+            evaluationSummary={evaluationSummary}
+            onRefresh={onLoadEvaluation}
           />
         )
       }
@@ -99,7 +121,7 @@ export function Dashboard({
             savingReview={savingReview}
             successMessage={successMessage}
           />
-        ) : (
+        ) : isDocuments ? (
           <ChatWindow
             error={error}
             messages={messages}
@@ -110,6 +132,18 @@ export function Dashboard({
             selectedDocumentId={selectedDocumentId}
             successMessage={successMessage}
           />
+        ) : (
+          <div className="output-stack">
+            <div className="context-panel-header">
+              <div>
+                <p className="section-label">Observability</p>
+                <h3>Evaluation notes</h3>
+              </div>
+            </div>
+            <div className="empty-state">
+              RAGAS evaluations run after RAG-backed responses and are stored asynchronously, so user-facing answers are not blocked by scoring.
+            </div>
+          </div>
         )
       }
     />

@@ -18,7 +18,7 @@ export function createApiClient({ apiBaseUrl, getToken, onUnauthorized }) {
         onUnauthorized?.();
       }
 
-      throw new Error(data.message || "Request failed.");
+      throw new Error(data.message || data.detail || "Request failed.");
     }
 
     return data;

@@ -364,6 +364,55 @@ p {
   margin-top: 16px;
 }
 
+.document-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-muted);
+}
+
+.document-status strong,
+.document-status span {
+  display: block;
+}
+
+.document-status span {
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.document-status-ready {
+  border-color: #b8e6c7;
+  background: #ecfdf3;
+}
+
+.document-status-failed {
+  border-color: #f4b5ad;
+  background: #fff3f0;
+}
+
+.inline-loader {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  border: 3px solid #d5ebe3;
+  border-top-color: var(--accent);
+  border-radius: 999px;
+  animation: spin 800ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .helper-copy,
 .body-copy,
 .result-card p,
@@ -443,6 +492,119 @@ p {
   margin-top: 16px;
 }
 
+.evaluation-stack,
+.evaluation-history-list,
+.trend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.evaluation-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.metric-card {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.metric-card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 24px;
+}
+
+.metric-hint {
+  display: block;
+  min-height: 18px;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.metric-track,
+.trend-track {
+  overflow: hidden;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+}
+
+.metric-track {
+  margin-top: 12px;
+}
+
+.metric-bar,
+.trend-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.evaluation-meta-row,
+.evaluation-score-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.evaluation-meta-row span,
+.evaluation-score-row span {
+  border-radius: 12px;
+  padding: 6px 8px;
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.trend-row,
+.evaluation-table-row {
+  display: grid;
+  align-items: center;
+  gap: 12px;
+}
+
+.trend-row {
+  grid-template-columns: 112px minmax(0, 1fr) 56px;
+}
+
+.evaluation-table {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.evaluation-table-row {
+  grid-template-columns: 1.4fr repeat(3, minmax(80px, 1fr));
+  padding: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.evaluation-table-row:first-child {
+  border-top: 0;
+}
+
+.evaluation-table-head {
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.evaluation-history-item {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
 .history-item {
   padding: 16px;
   border: 1px solid var(--border);
@@ -497,6 +659,61 @@ p {
 .message-bubble p {
   margin: 8px 0 0;
   line-height: 1.6;
+}
+
+.formatted-answer {
+  margin-top: 8px;
+  line-height: 1.6;
+}
+
+.formatted-answer p,
+.formatted-answer ol,
+.formatted-answer ul {
+  margin: 0;
+}
+
+.formatted-answer p + p,
+.formatted-answer p + ol,
+.formatted-answer p + ul,
+.formatted-answer ol + p,
+.formatted-answer ul + p {
+  margin-top: 10px;
+}
+
+.formatted-answer ol,
+.formatted-answer ul {
+  padding-left: 20px;
+}
+
+.formatted-answer li + li {
+  margin-top: 6px;
+}
+
+.formatted-answer strong {
+  font-weight: 800;
+}
+
+.typing-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 1em;
+  margin-left: 3px;
+  transform: translateY(2px);
+  border-radius: 999px;
+  background: var(--accent);
+  animation: cursor-blink 900ms steps(2, start) infinite;
+}
+
+@keyframes cursor-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+
+  46%,
+  100% {
+    opacity: 0;
+  }
 }
 
 .chat-composer {
@@ -597,6 +814,7 @@ p {
   .app-layout,
   .auth-layout,
   .form-grid,
+  .evaluation-grid,
   .history-list,
   .auth-hero-metrics,
   .auth-feature-list {

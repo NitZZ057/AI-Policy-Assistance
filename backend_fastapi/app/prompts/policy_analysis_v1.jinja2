@@ -1,0 +1,30 @@
+Policy data:
+- Type: {{ policy.type }}
+- Coverage: {{ policy.coverage }}
+- Location: {{ policy.location }}
+- Risk: {{ policy.risk }}
+
+Optional document context:
+{% if chunks %}
+{% for chunk in chunks %}
+[{{ chunk.context_label }}]
+[Source {{ loop.index }}] {{ chunk.document_name }}, section {{ chunk.chunk_index + 1 }}, score {{ "%.3f"|format(chunk.score) }}
+{{ chunk.content }}
+
+{% endfor %}
+{% else %}
+No document context was provided.
+{% endif %}
+
+Return JSON with exactly these fields:
+- summary: a concise operational summary of the policy.
+- risk_analysis: practical underwriting or review risks based on the policy data and supplied document context.
+- email: a complete client-ready email, not an email address. It must include:
+  - a subject line
+  - greeting
+  - short policy summary
+  - key coverage/risk notes
+  - recommended next steps
+  - professional closing
+
+Do not put only a recipient address in the email field. If a recipient address appears in context, use it only inside the email body when appropriate.

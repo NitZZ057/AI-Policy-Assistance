@@ -39,7 +39,7 @@ export function useAuth(apiBaseUrl) {
     setAuthLoading(true);
 
     try {
-      const endpoint = authMode === "register" ? "/api/register" : "/api/login";
+      const endpoint = authMode === "register" ? "/register" : "/login";
       const payload =
         authMode === "register"
           ? authForm
@@ -60,7 +60,7 @@ export function useAuth(apiBaseUrl) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Unable to authenticate.");
+        throw new Error(data.message || data.detail || "Unable to authenticate.");
       }
 
       persistAuth(data.token, data.user);
@@ -75,7 +75,7 @@ export function useAuth(apiBaseUrl) {
   const logout = async () => {
     try {
       if (token) {
-        await fetch(`${apiBaseUrl}/api/logout`, {
+        await fetch(`${apiBaseUrl}/logout`, {
           method: "POST",
           headers: {
             Accept: "application/json",

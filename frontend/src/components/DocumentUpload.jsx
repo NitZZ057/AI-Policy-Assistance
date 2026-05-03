@@ -5,6 +5,11 @@ export function DocumentUpload({
   onUploadDocument,
   selectedDocumentId,
 }) {
+  const selectedDocument = documents.find((document) => String(document.id) === String(selectedDocumentId));
+  const processingStatuses = new Set(["queued", "processing"]);
+  const isProcessing = selectedDocument && processingStatuses.has(selectedDocument.status);
+  const hasFailed = selectedDocument?.status === "failed";
+
   return (
     <section className="panel-card document-panel">
       <div className="card-header">
@@ -41,8 +46,30 @@ export function DocumentUpload({
         </select>
       </label>
 
+      {selectedDocument ? (
+        <div className={`document-status document-status-${selectedDocument.status}`}>
+          {isProcessing ? <span className="inline-loader" aria-hidden="true" /> : null}
+          <div>
+            <strong>
+              {isProcessing
+                ? "Processing document"
+                : hasFailed
+                  ? "Processing failed"
+                  : "Document ready"}
+            </strong>
+            <span>
+              {isProcessing
+                ? "Extracting text, chunking content, creating embeddings, and updating the vector index."
+                : hasFailed
+                  ? selectedDocument.metadata_?.error || "The document could not be indexed."
+                  : "This document is ready for policy analysis and Q&A."}
+            </span>
+          </div>
+        </div>
+      ) : null}
+
       <p className="helper-copy">
-        {documentLoading
+        {documentLoading || isProcessing
           ? "Extracting text, chunking, and creating embeddings..."
           : "Ready documents can ground policy analysis and document questions."}
       </p>

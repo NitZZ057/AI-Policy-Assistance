@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: policy-assistant-postgres
+    environment:
+      POSTGRES_DB: policy_assistant
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - policy_assistant_pgdata:/var/lib/postgresql/data
+
+volumes:
+  policy_assistant_pgdata:

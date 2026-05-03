@@ -1,0 +1,12 @@
+Question:
+{{ question }}
+
+Document context:
+{% for chunk in chunks %}
+[{{ chunk.context_label }}]
+[Source {{ loop.index }}] {{ chunk.document_name }}, section {{ chunk.chunk_index + 1 }}, score {{ "%.3f"|format(chunk.score) }}
+{{ chunk.content }}
+
+{% endfor %}
+
+Answer using only the document context above.

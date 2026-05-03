@@ -16,6 +16,9 @@ export function usePolicyAssistant({ apiBaseUrl, token, onUnauthorized }) {
   const [documentLoading, setDocumentLoading] = useState(false);
   const [queryLoading, setQueryLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [evaluationLoading, setEvaluationLoading] = useState(false);
+  const [evaluationSummary, setEvaluationSummary] = useState(null);
+  const [evaluationHistory, setEvaluationHistory] = useState([]);
   const [savingReview, setSavingReview] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -47,6 +50,9 @@ export function usePolicyAssistant({ apiBaseUrl, token, onUnauthorized }) {
     setDocumentLoading(false);
     setQueryLoading(false);
     setHistoryLoading(false);
+    setEvaluationLoading(false);
+    setEvaluationSummary(null);
+    setEvaluationHistory([]);
     setSavingReview(false);
   }
 
@@ -72,7 +78,7 @@ export function usePolicyAssistant({ apiBaseUrl, token, onUnauthorized }) {
     setHistoryLoading(true);
 
     try {
-      const data = await apiRequest("/api/policy/history");
+      const data = await apiRequest("/policy/history");
       setHistory(data.data || []);
     } catch (requestError) {
       setError(requestError.message);
@@ -87,10 +93,32 @@ export function usePolicyAssistant({ apiBaseUrl, token, onUnauthorized }) {
     }
 
     try {
-      const data = await apiRequest("/api/documents");
+      const data = await apiRequest("/documents");
       setDocuments(data.data || []);
     } catch (requestError) {
       setError(requestError.message);
+    }
+  };
+
+  const loadEvaluation = async () => {
+    if (!token) {
+      return;
+    }
+
+    setEvaluationLoading(true);
+
+    try {
+      const [summary, historyData] = await Promise.all([
+        apiRequest("/evaluation/summary"),
+        apiRequest("/evaluation/history"),
+      ]);
+
+      setEvaluationSummary(summary);
+      setEvaluationHistory(historyData.data || []);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setEvaluationLoading(false);
     }
   };
 
@@ -98,10 +126,31 @@ export function usePolicyAssistant({ apiBaseUrl, token, onUnauthorized }) {
     if (token) {
       loadHistory();
       loadDocuments();
+      loadEvaluation();
     } else {
       resetAssistantState();
     }
   }, [token]);
+
+  useEffect(() => {
+    if (!token) {
+      return undefined;
+    }
+
+    const hasProcessingDocument = documents.some((document) =>
+      ["queued", "processing"].includes(document.status),
+    );
+
+    if (!hasProcessingDocument) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      loadDocuments();
+    }, 2500);
+
+    return () => window.clearInterval(intervalId);
+  }, [documents, token]);
 
   const openForReview = (entry) => {
     const reviewedOutput = entry.final_output_payload || entry.output_payload || emptyDraft;
@@ -131,14 +180,14 @@ export function usePolicyAssistant({ apiBaseUrl, token, onUnauthorized }) {
       const body = new FormData();
       body.append("document", file);
 
-      const data = await apiRequest("/api/document/upload", {
+      const data = await apiRequest("/document/upload", {
         method: "POST",
         body,
       });
 
       const uploaded = data.data;
       setSelectedDocumentId(uploaded?.id ? String(uploaded.id) : "");
-      setSuccessMessage(data.message || "Document uploaded and indexed.");
+      setSuccessMessage(data.message || "Document uploaded. Indexing has started.");
       await loadDocuments();
     } catch (requestError) {
       setError(requestError.message);
@@ -153,7 +202,7 @@ export function usePolicyAssistant({ apiBaseUrl, token, onUnauthorized }) {
     setSuccessMessage("");
 
     try {
-      const data = await apiRequest("/api/policy/analyze", {
+      const data = await apiRequest("/policy/analyze", {
         method: "POST",
         body: JSON.stringify({
           ...form,
@@ -161,12 +210,19 @@ export function usePolicyAssistant({ apiBaseUrl, token, onUnauthorized }) {
         }),
       });
 
-      const nextDraft = data.result || emptyDraft;
+      const nextDraft = {
+        summary: data.summary || "",
+        risk_analysis: data.risk_analysis || "",
+        email: data.email || "",
+      };
       setDraft(nextDraft);
       setReferences(data.references || []);
-      setCurrentAnalysisId(data.meta?.analysis_id || null);
+      setCurrentAnalysisId(data.id || null);
 
       await loadHistory();
+      window.setTimeout(() => {
+        loadEvaluation();
+      }, 4000);
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -185,9 +241,11 @@ export function usePolicyAssistant({ apiBaseUrl, token, onUnauthorized }) {
     setSuccessMessage("");
 
     try {
-      const data = await apiRequest(`/api/policy/${currentAnalysisId}/finalize`, {
+      const data = await apiRequest(`/policy/${currentAnalysisId}/finalize`, {
         method: "PUT",
-        body: JSON.stringify(draft),
+        body: JSON.stringify({
+          final_output_payload: draft,
+        }),
       });
 
       setSuccessMessage(data.message || "Reviewed output saved.");
@@ -237,34 +295,65 @@ export function usePolicyAssistant({ apiBaseUrl, token, onUnauthorized }) {
       role: "user",
       content: trimmedQuestion,
     };
+    const assistantMessageId = `assistant-${Date.now()}`;
 
-    setMessages((current) => [...current, userMessage]);
+    setMessages((current) => [
+      ...current,
+      userMessage,
+      {
+        id: assistantMessageId,
+        role: "assistant",
+        content: "",
+        references: [],
+        streaming: true,
+      },
+    ]);
     setQuestion("");
     setQueryLoading(true);
     setError("");
     setSuccessMessage("");
 
     try {
-      const data = await apiRequest("/api/document/query", {
-        method: "POST",
-        body: JSON.stringify({
-          document_id: Number(selectedDocumentId),
-          question: trimmedQuestion,
-        }),
+      await streamDocumentAnswer({
+        apiBaseUrl,
+        assistantMessageId,
+        documentId: Number(selectedDocumentId),
+        getToken: () => token,
+        onDelta: (delta) => {
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantMessageId
+                ? {
+                    ...message,
+                    content: `${message.content}${delta}`,
+                  }
+                : message,
+            ),
+          );
+        },
+        onDone: (payload) => {
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantMessageId
+                ? {
+                    ...message,
+                    content: payload.answer || message.content || "No grounded answer was returned.",
+                    references: payload.references || [],
+                    streaming: false,
+                  }
+                : message,
+            ),
+          );
+        },
+        question: trimmedQuestion,
       });
 
-      setMessages((current) => [
-        ...current,
-        {
-          id: `assistant-${Date.now()}`,
-          role: "assistant",
-          content: data.answer || "No grounded answer was returned.",
-          references: data.references || [],
-        },
-      ]);
+      await loadEvaluation();
     } catch (requestError) {
       setError(requestError.message);
-      setMessages((current) => current.filter((message) => message.id !== userMessage.id));
+      setMessages((current) =>
+        current.filter((message) => message.id !== userMessage.id && message.id !== assistantMessageId),
+      );
     } finally {
       setQueryLoading(false);
     }
@@ -286,18 +375,22 @@ export function usePolicyAssistant({ apiBaseUrl, token, onUnauthorized }) {
 
   return {
     analyzePolicy,
-    clearMessages,
+        clearMessages,
     copyText,
     currentAnalysisId,
     documentLoading,
     documents,
     draft,
     error,
+    evaluationHistory,
+    evaluationLoading,
+    evaluationSummary,
     form,
     history,
     historyLoading,
     loadDemoPolicy,
     loadDocuments,
+    loadEvaluation,
     loadHistory,
     loading,
     messages,
@@ -318,10 +411,92 @@ export function usePolicyAssistant({ apiBaseUrl, token, onUnauthorized }) {
   };
 }
 
+async function streamDocumentAnswer({
+  apiBaseUrl,
+  documentId,
+  getToken,
+  onDelta,
+  onDone,
+  question,
+}) {
+  const response = await fetch(`${apiBaseUrl}/document/query/stream`, {
+    method: "POST",
+    headers: {
+      Accept: "text/event-stream",
+      "Content-Type": "application/json",
+      ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
+    },
+    body: JSON.stringify({
+      document_id: documentId,
+      question,
+    }),
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.message || data.detail || "Unable to stream document answer.");
+  }
+
+  if (!response.body) {
+    throw new Error("This browser does not support streaming responses.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split("\n\n");
+    buffer = events.pop() || "";
+
+    for (const rawEvent of events) {
+      const parsed = parseSseEvent(rawEvent);
+
+      if (!parsed) {
+        continue;
+      }
+
+      if (parsed.event === "token") {
+        onDelta(parsed.data.delta || "");
+      }
+
+      if (parsed.event === "done") {
+        onDone(parsed.data);
+      }
+
+      if (parsed.event === "error") {
+        throw new Error(parsed.data.message || "Streaming response failed.");
+      }
+    }
+  }
+}
+
+function parseSseEvent(rawEvent) {
+  const lines = rawEvent.split("\n");
+  const eventLine = lines.find((line) => line.startsWith("event:"));
+  const dataLine = lines.find((line) => line.startsWith("data:"));
+
+  if (!eventLine || !dataLine) {
+    return null;
+  }
+
+  return {
+    event: eventLine.slice("event:".length).trim(),
+    data: JSON.parse(dataLine.slice("data:".length).trim()),
+  };
+}
+
 function toReferences(sources) {
   return sources.map((source) => ({
-    document: source.chunk?.document?.original_name || "Policy document",
-    section: source.excerpt || "Referenced section",
+    document: source.document || source.chunk?.document?.original_name || "Policy document",
+    section: source.section || source.excerpt || "Referenced section",
     score: source.score || 0,
   }));
 }

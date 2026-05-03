@@ -17,10 +17,13 @@ backend/storage/*.key
 backend/storage/pail/
 backend/public/storage
 backend/database/database.sqlite
+backend_fastapi/storage/
 
 # Logs and caches
 *.log
 *.cache
+__pycache__/
+*.pyc
 backend/.phpunit.result.cache
 
 # Editor / OS files

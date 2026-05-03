@@ -21,7 +21,13 @@ export function AppLayout({
 
       <main className="main-workspace">
         <header className="page-header">
-          <p className="eyebrow">{activeWorkspace === "policy" ? "Policy Analysis Agent" : "Document Q&A Agent"}</p>
+          <p className="eyebrow">
+            {activeWorkspace === "policy"
+              ? "Policy Analysis Agent"
+              : activeWorkspace === "documents"
+                ? "Document Q&A Agent"
+                : "Evaluation Layer"}
+          </p>
           <h2>{title}</h2>
           <p>{subtitle}</p>
         </header>
