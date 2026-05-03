@@ -40,9 +40,12 @@ This approach ensures the system is:
 - Production-ready
 
 The project is built with:
-- `Laravel 12` for the backend API
+- `Python 3` for the FastAPI backend
+- `Laravel 12` for the backend API v1
 - `React + Vite` for the frontend
 - `OpenAI API` for structured AI generation
+- `Pinecone` for vector search
+- `PostgreSQL` for the database
 
 ## Links
 Live Demo: [https://your-frontend-url.onrender.com](https://ai-policy-assistance-1.onrender.com)
