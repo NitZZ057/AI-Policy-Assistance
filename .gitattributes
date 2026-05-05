@@ -1,0 +1,12 @@
+# Tell GitHub's Linguist to ignore the legacy Laravel backend
+# This fixes the language breakdown showing PHP-dominant instead of Python
+
+backend/**         linguist-vendored
+backend/**/*.php   linguist-vendored
+backend/**/*.blade.php linguist-vendored
+
+# Also exclude frontend JS from skewing stats toward JavaScript
+frontend/**        linguist-vendored
+
+# Explicitly mark the FastAPI backend as the primary detected code
+backend_fastapi/**/*.py linguist-detectable=true
