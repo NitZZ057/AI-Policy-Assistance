@@ -8,48 +8,54 @@ export function ChatWindow({
   onUpdateQuestion,
   question,
   queryLoading,
+  selectedDocumentName,
   selectedDocumentId,
   successMessage,
 }) {
   return (
-    <div className="chat-window">
+    <>
       <div className="context-panel-header">
-        <div>
+        <div className="card-header-copy">
           <p className="section-label">Chat</p>
           <h3>Document answers</h3>
         </div>
       </div>
 
-      <FeedbackBanner error={error} successMessage={successMessage} />
-
       <div className="chat-stream" aria-live="polite">
+        <FeedbackBanner error={error} successMessage={successMessage} />
+
         {!messages.length ? (
-          <div className="empty-state">
+          <p className="empty-state">
             No questions yet. Select a ready document, then ask about limits, exclusions, terms, or renewal notes.
-          </div>
+          </p>
         ) : (
           messages.map((message) => <MessageBubble key={message.id} message={message} />)
         )}
 
         {queryLoading && !messages.some((message) => message.streaming) ? (
-          <div className="message-bubble message-bubble-assistant">Searching the selected document...</div>
+          <div className="message-row">
+            <div className="message-bubble">Searching the selected document…</div>
+          </div>
         ) : null}
       </div>
 
       <form className="chat-composer" onSubmit={onQueryDocument}>
-        <label className="field">
-          <span>Question</span>
-          <textarea
-            placeholder="What does this policy say about flood exclusions?"
-            rows={3}
-            value={question}
-            onChange={(event) => onUpdateQuestion(event.target.value)}
-          />
-        </label>
-        <button className="primary-button primary-button-wide" type="submit" disabled={queryLoading || !selectedDocumentId}>
-          {queryLoading ? "Searching..." : "Ask Document"}
-        </button>
+        <textarea
+          rows={2}
+          placeholder="Ask about limits, exclusions, terms, or renewal notes"
+          value={question}
+          onChange={(event) => onUpdateQuestion(event.target.value)}
+        />
+
+        <div className="chat-composer-row">
+          <span className="chat-composer-caption">
+            {selectedDocumentName ? `Grounded in ${selectedDocumentName}` : "Select a ready document to ask"}
+          </span>
+          <button className="primary-button" type="submit" disabled={queryLoading || !selectedDocumentId}>
+            {queryLoading ? "Asking…" : "Ask"}
+          </button>
+        </div>
       </form>
-    </div>
+    </>
   );
 }

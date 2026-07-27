@@ -4,6 +4,7 @@ class UserPublic(BaseModel):
     id: int
     name: str
     email: EmailStr
+    is_guest: bool = False
 
     model_config = {"from_attributes" : True}
 

@@ -83,15 +83,31 @@ function AuthContainer({ auth }) {
     }
   };
 
+  const handleGuestLogin = async () => {
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      const message = await auth.loginAsGuest();
+      setSuccessMessage(message);
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  };
+
   return (
     <AuthScreen
       authForm={auth.authForm}
       authLoading={auth.authLoading}
       authMode={auth.authMode}
       error={error}
+      guestLoading={auth.guestLoading}
+      onGuestLogin={handleGuestLogin}
       onModeChange={auth.setAuthMode}
       onSubmit={handleSubmit}
+      onToggleRemember={auth.toggleRememberMe}
       onUpdateField={auth.updateAuthField}
+      rememberMe={auth.rememberMe}
       successMessage={successMessage}
     />
   );

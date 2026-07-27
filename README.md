@@ -325,6 +325,7 @@ Public routes:
 
 - `POST /register`
 - `POST /login`
+- `POST /guest`
 - `POST /api/register`
 - `POST /api/login`
 
@@ -381,6 +382,25 @@ Policy history and final review actions are scoped to the authenticated user.
   "email": "aarav@example.com",
   "password": "password123"
 }
+```
+
+### Guest Login
+
+`POST /guest`
+
+No request body. Returns the same `{ token, user }` shape as `/login`, with `user.is_guest` set to `true`.
+
+Every call provisions its own throwaway user rather than sharing one demo account, because `users.api_token`
+is a single column — a shared account would rotate the token on each guest login, signing the previous
+visitor out and exposing their history to the next one. The guest password is random and never returned, so
+`/login` cannot be used to re-enter a guest account.
+
+Set `GUEST_LOGIN_ENABLED=false` to disable the endpoint (returns `403`).
+
+Guest rows accumulate, one per click. To prune them:
+
+```sql
+DELETE FROM users WHERE is_guest AND created_at < now() - interval '7 days';
 ```
 
 ### Upload Document
@@ -546,6 +566,9 @@ PINECONE_INDEX_NAME=policy-assistant
 PINECONE_CLOUD=aws
 PINECONE_REGION=us-east-1
 PINECONE_NAMESPACE=documents
+
+GUEST_LOGIN_ENABLED=true
+GUEST_EMAIL_DOMAIN=guests.policy-assistant.app
 
 POLICY_ANALYSIS_PROMPT_VERSION=v1
 DOCUMENT_QA_PROMPT_VERSION=v1

@@ -14,36 +14,50 @@ export function PolicyForm({
   selectedDocumentId,
 }) {
   return (
-    <div className="workflow-stack">
+    <>
       <section className="panel-card">
-        <div className="card-header">
-          <div>
-            <p className="section-label">Policy Input</p>
-            <h3>Policy details</h3>
+        <form onSubmit={onSubmit}>
+          <div className="card-header">
+            <div className="card-header-copy">
+              <p className="section-label">Policy input</p>
+              <h3>Policy details</h3>
+            </div>
+            <button className="secondary-button" type="button" onClick={onLoadDemo}>
+              Load demo
+            </button>
           </div>
-          <button className="secondary-button" type="button" onClick={onLoadDemo}>
-            Load demo
-          </button>
-        </div>
 
-        <form className="policy-form" onSubmit={onSubmit}>
-          <div className="form-grid">
+          <div className="card-body policy-grid">
             {policyFieldConfig.map((field) => (
               <label className="field" key={field.key}>
                 <span>{field.label}</span>
-                <textarea
-                  rows={field.key === "coverage" || field.key === "risk" ? 4 : 2}
-                  placeholder={field.placeholder}
-                  value={form[field.key]}
-                  onChange={(event) => onUpdateField(field.key, event.target.value)}
-                />
+                {field.control === "textarea" ? (
+                  <textarea
+                    rows={field.rows}
+                    placeholder={field.placeholder}
+                    value={form[field.key]}
+                    onChange={(event) => onUpdateField(field.key, event.target.value)}
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    placeholder={field.placeholder}
+                    value={form[field.key]}
+                    onChange={(event) => onUpdateField(field.key, event.target.value)}
+                  />
+                )}
               </label>
             ))}
           </div>
 
-          <button className="primary-button primary-button-wide" type="submit" disabled={loading}>
-            {loading ? "Analyzing..." : "Analyze Policy"}
-          </button>
+          <div className="card-footer">
+            <p className="helper-copy">
+              Output is drafted for review — nothing is sent to a client automatically.
+            </p>
+            <button className="primary-button" type="submit" disabled={loading}>
+              {loading ? "Analyzing…" : "Run analysis"}
+            </button>
+          </div>
         </form>
       </section>
 
@@ -54,6 +68,6 @@ export function PolicyForm({
         onUploadDocument={onUploadDocument}
         selectedDocumentId={selectedDocumentId}
       />
-    </div>
+    </>
   );
 }
