@@ -17,27 +17,42 @@ export const initialAuthForm = {
   password: "",
 };
 
+/* Order matters — the two-column grid fills left-to-right, so the two
+   single-line fields sit on the first row and the two textareas below. */
 export const policyFieldConfig = [
   {
     key: "type",
-    label: "Policy Type",
+    label: "Policy type",
+    control: "input",
     placeholder: "Commercial Property",
-  },
-  {
-    key: "coverage",
-    label: "Coverage",
-    placeholder: "Building and contents up to $500,000",
   },
   {
     key: "location",
     label: "Location",
-    placeholder: "Pune, Maharashtra",
+    control: "input",
+    placeholder: "Austin, Texas",
+  },
+  {
+    key: "coverage",
+    label: "Coverage",
+    control: "textarea",
+    rows: 3,
+    placeholder: "Building, inventory, and business interruption up to $750,000",
   },
   {
     key: "risk",
-    label: "Risk Notes",
-    placeholder: "Moderate flood risk near river zone",
+    label: "Risk notes",
+    control: "textarea",
+    rows: 3,
+    placeholder: "Seasonal storm exposure with a recent roofing claim",
   },
+];
+
+export const questionStarters = [
+  "What does this policy say about flood exclusions?",
+  "Summarise the business interruption waiting period.",
+  "Which endorsements change the wind/hail deductible?",
+  "What notice is required for a mid-term cancellation?",
 ];
 
 export const draftFieldConfig = [

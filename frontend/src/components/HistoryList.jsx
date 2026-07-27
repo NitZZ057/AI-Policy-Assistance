@@ -1,48 +1,87 @@
+function relativeTime(value) {
+  const created = new Date(value);
+  const minutes = Math.round((Date.now() - created.getTime()) / 60000);
+
+  if (minutes < 1) {
+    return "Just now";
+  }
+
+  if (minutes < 60) {
+    return `${minutes} min ago`;
+  }
+
+  if (minutes < 60 * 24) {
+    const hours = Math.round(minutes / 60);
+    return `${hours} hr ago`;
+  }
+
+  if (minutes < 60 * 48) {
+    return "Yesterday";
+  }
+
+  return created.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function statusPill(entry) {
+  if (entry.status === "reviewed" || entry.reviewed_at) {
+    return { className: "pill pill-solid", label: "Final" };
+  }
+
+  if (entry.error_message) {
+    return { className: "pill", label: "Failed" };
+  }
+
+  return { className: "pill pill-accent", label: "Awaiting review" };
+}
+
 export function HistoryList({ history, historyLoading, onLoadHistory, onOpenForReview }) {
   return (
-    <section className="history-card">
-      <div className="form-heading">
-        <div>
-          <p className="section-label">Audit Trail</p>
-          <h2>Your recent analyses</h2>
+    <section className="panel-card">
+      <div className="card-header">
+        <div className="card-header-copy">
+          <p className="section-label">Audit trail</p>
+          <h3>Recent analyses</h3>
         </div>
         <button className="secondary-button" type="button" onClick={onLoadHistory} disabled={historyLoading}>
-          {historyLoading ? "Refreshing..." : "Refresh history"}
+          {historyLoading ? "Refreshing…" : "Refresh"}
         </button>
       </div>
 
       {!history.length ? (
-        <div className="empty-state">
-          No saved analyses yet. Your signed-in account will only see its own requests, outputs, and review states.
-        </div>
+        <p className="empty-state">
+          No saved analyses yet. This workspace only ever shows its own requests, outputs, and review states.
+        </p>
       ) : (
-        <div className="history-list">
+        <div className="data-table">
+          <div className="table-head history-grid">
+            <span>Reference</span>
+            <span>Line of business</span>
+            <span>Status</span>
+            <span>Updated</span>
+            <span />
+          </div>
+
           {history.map((entry) => {
             const reviewSource = entry.final_output_payload || entry.output_payload || {};
+            const pill = statusPill(entry);
 
             return (
-              <article className="history-item" key={entry.id}>
-                <div className="history-topline">
-                  <div>
-                    <p className="result-label">{entry.policy_type}</p>
-                    <h3>Analysis #{entry.id}</h3>
-                  </div>
-                  <span className={`status-pill status-pill-${entry.status}`}>{entry.status}</span>
-                </div>
-
-                <div className="history-badges">
-                  <span className={`review-pill ${entry.reviewed_at ? "review-pill-reviewed" : "review-pill-draft"}`}>
-                    {entry.reviewed_at ? "Reviewed" : "Draft only"}
+              <div className="table-row history-grid" key={entry.id}>
+                <div className="history-ref">
+                  <strong>AN-{entry.id}</strong>
+                  <span className="history-note">
+                    {reviewSource.summary || entry.error_message || "No output stored."}
                   </span>
                 </div>
 
-                <p className="history-meta">{new Date(entry.created_at).toLocaleString()}</p>
-                <p className="history-snippet">{reviewSource.summary || entry.error_message || "No output stored."}</p>
+                <span className="table-cell">{entry.policy_type}</span>
+                <span className={pill.className}>{pill.label}</span>
+                <span className="table-cell-muted">{relativeTime(entry.created_at)}</span>
 
-                <button className="secondary-button history-action" type="button" onClick={() => onOpenForReview(entry)}>
-                  Open in review
+                <button className="row-action" type="button" onClick={() => onOpenForReview(entry)}>
+                  Open review
                 </button>
-              </article>
+              </div>
             );
           })}
         </div>

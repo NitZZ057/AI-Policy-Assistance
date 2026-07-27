@@ -2,28 +2,45 @@ import { useMemo, useState } from "react";
 import { initialAuthForm } from "../constants/policy";
 import { TOKEN_STORAGE_KEY, USER_STORAGE_KEY } from "../constants/storage";
 
+/* "Keep me signed in" picks the storage the session lands in: localStorage
+   survives a browser restart, sessionStorage dies with the tab. */
+function readStored(key) {
+  return localStorage.getItem(key) || sessionStorage.getItem(key) || "";
+}
+
 export function useAuth(apiBaseUrl) {
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_STORAGE_KEY) || "");
+  const [token, setToken] = useState(() => readStored(TOKEN_STORAGE_KEY));
   const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem(USER_STORAGE_KEY);
+    const stored = readStored(USER_STORAGE_KEY);
     return stored ? JSON.parse(stored) : null;
   });
   const [authMode, setAuthMode] = useState("login");
   const [authForm, setAuthForm] = useState(initialAuthForm);
   const [authLoading, setAuthLoading] = useState(false);
+  const [guestLoading, setGuestLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => Boolean(localStorage.getItem(TOKEN_STORAGE_KEY)));
 
   const isAuthenticated = useMemo(() => Boolean(token && user), [token, user]);
 
-  const persistAuth = (nextToken, nextUser) => {
-    localStorage.setItem(TOKEN_STORAGE_KEY, nextToken);
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(nextUser));
+  const persistAuth = (nextToken, nextUser, { persistent = rememberMe } = {}) => {
+    const target = persistent ? localStorage : sessionStorage;
+    const other = persistent ? sessionStorage : localStorage;
+
+    other.removeItem(TOKEN_STORAGE_KEY);
+    other.removeItem(USER_STORAGE_KEY);
+    target.setItem(TOKEN_STORAGE_KEY, nextToken);
+    target.setItem(USER_STORAGE_KEY, JSON.stringify(nextUser));
+
     setToken(nextToken);
     setUser(nextUser);
   };
 
   const clearAuth = () => {
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
-    localStorage.removeItem(USER_STORAGE_KEY);
+    for (const store of [localStorage, sessionStorage]) {
+      store.removeItem(TOKEN_STORAGE_KEY);
+      store.removeItem(USER_STORAGE_KEY);
+    }
+
     setToken("");
     setUser(null);
   };
@@ -34,6 +51,8 @@ export function useAuth(apiBaseUrl) {
       [key]: value,
     }));
   };
+
+  const toggleRememberMe = () => setRememberMe((current) => !current);
 
   const submitAuth = async () => {
     setAuthLoading(true);
@@ -72,6 +91,33 @@ export function useAuth(apiBaseUrl) {
     }
   };
 
+  const loginAsGuest = async () => {
+    setGuestLoading(true);
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/guest`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || data.detail || "Unable to start a guest session.");
+      }
+
+      // A guest workspace is throwaway by design, so it never outlives the tab.
+      persistAuth(data.token, data.user, { persistent: false });
+      setAuthForm(initialAuthForm);
+
+      return "Signed in as a guest.";
+    } finally {
+      setGuestLoading(false);
+    }
+  };
+
   const logout = async () => {
     try {
       if (token) {
@@ -93,10 +139,14 @@ export function useAuth(apiBaseUrl) {
     authLoading,
     authMode,
     clearAuth,
+    guestLoading,
     isAuthenticated,
+    loginAsGuest,
     logout,
+    rememberMe,
     setAuthMode,
     submitAuth,
+    toggleRememberMe,
     token,
     updateAuthField,
     user,
