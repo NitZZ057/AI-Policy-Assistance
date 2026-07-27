@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4.1-mini"
     openai_embedding_model: str = "text-embedding-3-small"
 
+    guest_login_enabled: bool = True
+    guest_email_domain: str = "guests.policy-assistant.app"
+
     policy_analysis_prompt_version: str = "v1"
     document_qa_prompt_version: str = "v1"
 
